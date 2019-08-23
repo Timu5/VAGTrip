@@ -10,9 +10,26 @@ char * names[] = { "Average Consumption", "Instant Consumption", "Trip Distance"
 float values[] = { 0, 0, 0, 0 };
 
 int sel = 0;
+float speed = 0;
+
+ISR(TIMER1_OVF_vect)
+{
+  values[1] = 0; // get instant consumption in g/s and calc fuel
+  values[0] += values[1] / (60 * 60);
+  values[2] += speed / (60 * 60);
+  values[3] += 1;
+}
 
 void setup()
 {
+  noInterrupts();
+  TCCR1A = 0;
+  TCCR1B = 0;
+  TCNT1 = 34286;
+  TCCR1B |= (1 << CS12);
+  TIMSK1 |= (1 << TOIE1);
+  interrupts();
+
   display.begin(SSD1306_SWITCHCAPVCC, 0x3D);
   display.clearDisplay();
   display.display();

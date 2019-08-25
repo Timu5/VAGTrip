@@ -6,7 +6,13 @@
 #define OLED_RESET 4
 Adafruit_SSD1306 display(OLED_RESET);
 
-char * names[] = { "Average Consumption", "Instant Consumption", "Trip Distance", "Trip Time", "Speed" };
+#define STAT_INST 0
+#define STAT_AVG 1
+#define STAT_DIST 2
+#define STAT_TIME 3
+#define STAT_SPEED 4
+
+char * names[] = { "Instant Consumption", "Average Consumption", "Trip Distance", "Trip Time", "Speed" };
 float values[] = { 0, 0, 0, 0, 0 };
 
 int sel = 0;
@@ -14,11 +20,11 @@ float speed = 0;
 
 ISR(TIMER1_OVF_vect)
 {
-  values[1] = 0; // get instant consumption in g/s and calc fuel
-  values[0] += values[1] / (60 * 60);
-  values[2] += speed / (60 * 60);
-  values[3] += 1;
-  values[4] = speed;
+  values[STAT_INST] = 0; // get instant consumption in g/s and calc fuel
+  values[STAT_AVG] += values[1] / (60 * 60);
+  values[STAT_DIST] += speed / (60 * 60);
+  values[STAT_TIME] += 1;
+  values[STAT_SPEED] = speed;
 }
 
 void setup()

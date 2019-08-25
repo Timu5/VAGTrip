@@ -13,9 +13,10 @@ Adafruit_SSD1306 display(OLED_RESET);
 #define STAT_DIST 2
 #define STAT_TIME 3
 #define STAT_SPEED 4
+#define STAT_AVGSPEED 5
 
-char * names[] = { "Instant Consumption", "Average Consumption", "Trip Distance", "Trip Time", "Speed" };
-float values[] = { 0, 0, 0, 0, 0 };
+char * names[] = { "Instant Consumption", "Average Consumption", "Trip Distance", "Trip Time", "Speed", "Average Speed" };
+float values[] = { 0, 0, 0, 0, 0, 0 };
 
 int sel = 0;
 float speed = 0;
@@ -27,6 +28,7 @@ ISR(TIMER1_OVF_vect)
   values[STAT_DIST] += speed / (60 * 60);
   values[STAT_TIME] += 1;
   values[STAT_SPEED] = speed;
+  values[STAT_AVGSPEED] = values[STAT_DIST] / values[STAT_TIME];
 }
 
 void setup()
@@ -54,7 +56,7 @@ void loop()
     if(digitalRead(SELECT_BUTTON) == LOW)
     {
       // button pressed
-      sel = (sel + 1) % 6;
+      sel = (sel + 1) % 7;
     }
   }
 

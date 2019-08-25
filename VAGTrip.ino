@@ -6,6 +6,8 @@
 #define OLED_RESET 4
 Adafruit_SSD1306 display(OLED_RESET);
 
+#define SELECT_BUTTON 5
+
 #define STAT_INST 0
 #define STAT_AVG 1
 #define STAT_DIST 2
@@ -40,10 +42,22 @@ void setup()
   display.begin(SSD1306_SWITCHCAPVCC, 0x3D);
   display.clearDisplay();
   display.display();
+
+  pinMode(SELECT_BUTTON, INPUT_PULLUP);
 }
 
 void loop()
 {
+  if(digitalRead(SELECT_BUTTON) == LOW)
+  {
+    delay(50); // debounce
+    if(digitalRead(SELECT_BUTTON) == LOW)
+    {
+      // button pressed
+      sel = (sel + 1) % 6;
+    }
+  }
+
   display.clearDisplay();
 	
   display.setTextSize(1);

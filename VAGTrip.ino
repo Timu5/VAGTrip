@@ -1,4 +1,3 @@
-#include <SPI.h>
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
@@ -8,8 +7,8 @@ Adafruit_SSD1306 display(OLED_RESET);
 
 #define SELECT_BUTTON 5
 
-#define STAT_INST 0
-#define STAT_AVG 1
+#define STAT_AVG 0
+#define STAT_INST 1
 #define STAT_DIST 2
 #define STAT_TIME 3
 #define STAT_SPEED 4
@@ -20,6 +19,8 @@ float values[] = { 0, 0, 0, 0, 0, 0 };
 
 int sel = 0;
 float speed = 0;
+
+int press_time = -1;
 
 ISR(TIMER1_OVF_vect)
 {
@@ -57,7 +58,20 @@ void loop()
     {
       // button pressed
       sel = (sel + 1) % 7;
+      press_time = millis();
     }
+  }
+  else
+  {
+    press_time = -1;
+  }
+
+  if(press_time != -1 && millis() - press_time >= 2000)
+  {
+    // long press, reset
+    values[STAT_AVG] = 0;
+    values[STAT_DIST] = 0;
+    values[STAT_TIME] = 0;
   }
 
   display.clearDisplay();

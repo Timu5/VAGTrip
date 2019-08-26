@@ -1,9 +1,14 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include "KWP.h"
 
 #define OLED_RESET 4
 Adafruit_SSD1306 display(OLED_RESET);
+
+#define KLINE_RX 2
+#define KLINE_TX 3
+KWP kwp(KLINE_RX, KLINE_TX);
 
 #define SELECT_BUTTON 5
 
@@ -15,17 +20,19 @@ Adafruit_SSD1306 display(OLED_RESET);
 #define STAT_AVGSPEED 5
 #define STAT_OIL 6
 
-char * names[] = { "Instant Consumption", "Average Consumption", "Trip Distance", "Trip Time", "Speed", "Average Speed", "Oil Change" };
+const char * names[] = { "Instant Consumption", "Average Consumption", "Trip Distance", "Trip Time", "Speed", "Average Speed", "Oil Change" };
 float values[] = { 0, 0, 0, 0, 0, 0, 0 };
 
 int sel = 0;
 float speed = 0;
+float pw = 0;
+float rpm = 0;
 
 int press_time = -1;
 
 ISR(TIMER1_OVF_vect)
 {
-  values[STAT_INST] = 0; // get instant consumption in g/s and calc fuel
+  values[STAT_INST] = pw * rpm * 320; // cc/min
   values[STAT_AVG] += values[1] / (60 * 60);
   values[STAT_DIST] += speed / (60 * 60);
   values[STAT_TIME] += 1;
@@ -82,6 +89,24 @@ void loop()
       values[STAT_OIL] = 15000; // oil change interval
     }
     press_time = -1;
+  }
+
+  if(!kwp.isConnected())
+  {
+    if(!kwp.connect(ADR_Engine, 10400))
+    {
+      // can't connect to ecu
+    }
+  }
+  else
+  {
+    SENSOR resultBlock[4];
+    int nSensors = kwp.readBlock(ADR_Engine, 2, 4, resultBlock);
+    if(resultBlock[0].value != "")
+    {
+      pw = resultBlock[2].valuef;
+      rpm = resultBlock[0].valuef;
+    }
   }
 
   display.clearDisplay();

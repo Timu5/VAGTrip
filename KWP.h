@@ -29,6 +29,7 @@ struct SENSOR {
   int b;
   String desc;
   String value;
+  float valuef;
   String units;
 };
 

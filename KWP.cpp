@@ -72,11 +72,11 @@ int KWP::readBlock(uint8_t addr, int group, int maxSensorsPerBlock, SENSOR resGr
     errorData++;
     return 0;
   }
-  String blockDescs= getBlockDesc(addr, group);
-  int len=blockDescs.length();
-  char buf[len+1];
-  blockDescs.toCharArray(buf, len+1);
-  char* command = strtok(buf, ",");
+  //String blockDescs= getBlockDesc(addr, group);
+  //int len=blockDescs.length();
+  //char buf[len+1];
+  //blockDescs.toCharArray(buf, len+1);
+  //char* command = strtok(buf, ",");
   Serial.print(F("count="));
   Serial.println(count);
   int j=0;
@@ -84,18 +84,19 @@ int KWP::readBlock(uint8_t addr, int group, int maxSensorsPerBlock, SENSOR resGr
     byte k=s[3 + idx*3];
     byte a=s[3 + idx*3+1];
     byte b=s[3 + idx*3+2];
-    String desc=String(command);
+    //String desc=String(command);
     SENSOR sensor = getSensorData(k, a, b);
-    if(desc != "" && sensor.value != ""){
+    if(/*desc != "" &&*/ sensor.value != ""){
       resGroupSensor[j].type = sensor.type;
       resGroupSensor[j].a = sensor.a;
       resGroupSensor[j].b = sensor.b;
-      resGroupSensor[j].desc = desc;
+      //resGroupSensor[j].desc = desc;
       resGroupSensor[j].value = sensor.value;
+      resGroupSensor[j].valuef = sensor.valuef;
       resGroupSensor[j].units = sensor.units;
       j++;
     }
-    command = strtok(0, ",");
+    //command = strtok(0, ",");
   }
   return j;
 }
@@ -197,13 +198,14 @@ SENSOR KWP::getSensorData(byte k, byte a, byte b) {
     res.a = a;
     res.b = b;
     res.value = String(buf);
+    res.valuef = v;
     res.units = units;
     return res;
 }
 
 String KWP::getBlockDesc(uint8_t addr, int block){
   String blockDescs;
-  if(addr == ADR_Dashboard){
+  /*if(addr == ADR_Dashboard){
     switch (block){
       case 1: blockDescs=F("Speed,Engine Speed,Oil pressure,Time"); break;
       case 2: blockDescs=F("Odometer,Fuel lvl,FuelSend,TAmbient"); break; // case 2: blockDescs=F("Odometer,Fuel level (l),Fuel Sender,Ambient"); break;
@@ -288,8 +290,8 @@ String KWP::getBlockDesc(uint8_t addr, int block){
       default: blockDescs=F(""); break;
     }
   }
-  else{
-    Serial.println("Not description found for that address");
+  else{*/{
+    Serial.println(F("Not description found for that address"));
   }
   return blockDescs;
 }

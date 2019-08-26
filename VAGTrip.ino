@@ -81,6 +81,7 @@ void loop()
     {
       values[STAT_OIL] = 15000; // oil change interval
     }
+    press_time = -1;
   }
 
   display.clearDisplay();

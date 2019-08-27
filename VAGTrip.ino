@@ -3,8 +3,7 @@
 #include <Adafruit_SSD1306.h>
 #include "KWP.h"
 
-#define OLED_RESET 4
-Adafruit_SSD1306 display(OLED_RESET);
+Adafruit_SSD1306 display(-1);
 
 #define KLINE_RX 2
 #define KLINE_TX 3
@@ -24,12 +23,13 @@ const char * names[] = { "Instant Consumption", "Average Consumption", "Trip Dis
 float values[] = { 0, 0, 0, 0, 0, 0, 0 };
 
 int selected = 0;
-float speed = 0;
-float pw = 0;
-float rpm = 0;
+float speed = 100;
+float pw = 10;
+float rpm = 3000;
 float total_fuel = 0;
 
-int press_time = -1;
+unsigned long press_time = 0;
+int button = 0;
 
 ISR(TIMER1_OVF_vect)
 {
@@ -39,7 +39,7 @@ ISR(TIMER1_OVF_vect)
   values[STAT_AVG] += total_fuel / values[STAT_DIST];
   values[STAT_TIME] += 1;
   values[STAT_SPEED] = speed;
-  values[STAT_AVGSPEED] = values[STAT_DIST] / values[STAT_TIME];
+  values[STAT_AVGSPEED] = values[STAT_DIST] * 60 * 60 / values[STAT_TIME];
   values[STAT_OIL] -= speed / (60 * 60);
 }
 
@@ -53,7 +53,7 @@ void setup()
   TIMSK1 |= (1 << TOIE1);
   interrupts();
 
-  display.begin(SSD1306_SWITCHCAPVCC, 0x3D);
+  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
   display.clearDisplay();
   display.display();
 
@@ -62,22 +62,31 @@ void setup()
 
 void loop()
 {
-  if(digitalRead(SELECT_BUTTON) == LOW && press_time == -1)
+  if(digitalRead(SELECT_BUTTON) == LOW && button == 0)
   {
     delay(50); // debounce
     if(digitalRead(SELECT_BUTTON) == LOW)
     {
       // button pressed
-      selected = (selected + 1) % 7;
       press_time = millis();
+      button = 1;
     }
   }
-  else
+  else if(digitalRead(SELECT_BUTTON) == HIGH && button == 1)
   {
-    press_time = -1;
+    delay(50); // debounce
+    if(digitalRead(SELECT_BUTTON) == HIGH)
+    {
+      if(press_time != 0)
+      {
+        selected = (selected + 1) % 7;
+      }
+      button = 0;
+      press_time = 0;
+    }
   }
 
-  if(press_time != -1 && millis() - press_time >= 2000)
+  if((button == 1) && (press_time != 0) && (millis() - press_time >= 2000UL))
   {
     // long press, reset
     if(selected < STAT_OIL)
@@ -91,7 +100,7 @@ void loop()
     {
       values[STAT_OIL] = 15000; // oil change interval
     }
-    press_time = -1;
+    press_time = 0;
   }
 
   if(!kwp.isConnected())
@@ -119,7 +128,7 @@ void loop()
   display.setCursor(0,0);
   display.println(names[selected]);
   
-  display.drawLine(0, 20, 127, 20, WHITE);
+  display.drawLine(0, 14, 127, 14, WHITE);
   
   display.setTextSize(2);
   display.setTextColor(WHITE);

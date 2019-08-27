@@ -105,7 +105,7 @@ void loop()
   {
     SENSOR resultBlock[4];
     int nSensors = kwp.readBlock(ADR_Engine, 2, 4, resultBlock);
-    if(resultBlock[0].value != "")
+    //if(resultBlock[0].value != "")
     {
       pw = resultBlock[2].valuef;
       rpm = resultBlock[0].valuef;

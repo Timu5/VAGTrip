@@ -27,8 +27,6 @@ struct SENSOR {
   int type;
   int a;
   int b;
-  String desc;
-  String value;
   float valuef;
   String units;
 };
@@ -41,7 +39,6 @@ class KWP {
     void disconnect();
     int readBlock(uint8_t addr, int group, int maxSensorsPerGroup, SENSOR resGroupSensor[]);
     SENSOR getSensorData(byte k, byte a, byte b);
-    String getBlockDesc(uint8_t addr, int block);
     bool isConnected();
     uint8_t getCurrAddr();
   private:
@@ -57,8 +54,7 @@ class KWP {
 
     void obdWrite(uint8_t data);
     uint8_t obdRead();
-    void send5baud(uint8_t data);
-    bool KWP5BaudInit(uint8_t addr);
+    void KWP5BaudInit(uint8_t addr);
     bool KWPSendBlock(char *s, int size);
     bool KWPReceiveBlock(char s[], int maxsize, int &size, bool init_delay = false);
     bool KWPSendAckBlock();

@@ -23,7 +23,7 @@ KWP kwp(KLINE_RX, KLINE_TX);
 const char * names[] = { "Instant Consumption", "Average Consumption", "Trip Distance", "Trip Time", "Speed", "Average Speed", "Oil Change" };
 float values[] = { 0, 0, 0, 0, 0, 0, 0 };
 
-int sel = 0;
+int selected = 0;
 float speed = 0;
 float pw = 0;
 float rpm = 0;
@@ -62,13 +62,13 @@ void setup()
 
 void loop()
 {
-  if(digitalRead(SELECT_BUTTON) == LOW)
+  if(digitalRead(SELECT_BUTTON) == LOW && press_time == -1)
   {
     delay(50); // debounce
     if(digitalRead(SELECT_BUTTON) == LOW)
     {
       // button pressed
-      sel = (sel + 1) % 7;
+      selected = (selected + 1) % 7;
       press_time = millis();
     }
   }
@@ -80,7 +80,7 @@ void loop()
   if(press_time != -1 && millis() - press_time >= 2000)
   {
     // long press, reset
-    if(sel < STAT_OIL)
+    if(selected < STAT_OIL)
     {
       values[STAT_AVG] = 0;
       values[STAT_DIST] = 0;
@@ -117,14 +117,14 @@ void loop()
   display.setTextSize(1);
   display.setTextColor(WHITE);
   display.setCursor(0,0);
-  display.println(names[sel]);
+  display.println(names[selected]);
   
   display.drawLine(0, 20, 127, 20, WHITE);
   
   display.setTextSize(2);
   display.setTextColor(WHITE);
   display.setCursor(0, 20);
-  display.println(values[sel]);
+  display.println(values[selected]);
  
   display.display();
   delay(1);

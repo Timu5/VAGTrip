@@ -27,14 +27,16 @@ int sel = 0;
 float speed = 0;
 float pw = 0;
 float rpm = 0;
+float total_fuel = 0;
 
 int press_time = -1;
 
 ISR(TIMER1_OVF_vect)
 {
-  values[STAT_INST] = pw * rpm * 320; // cc/min
-  values[STAT_AVG] += values[1] / (60 * 60);
+  values[STAT_INST] = pw * rpm * 320 / speed;
+  total_fuel += values[STAT_INST] / (60 * 60);
   values[STAT_DIST] += speed / (60 * 60);
+  values[STAT_AVG] += total_fuel / values[STAT_DIST];
   values[STAT_TIME] += 1;
   values[STAT_SPEED] = speed;
   values[STAT_AVGSPEED] = values[STAT_DIST] / values[STAT_TIME];
@@ -83,6 +85,7 @@ void loop()
       values[STAT_AVG] = 0;
       values[STAT_DIST] = 0;
       values[STAT_TIME] = 0;
+      total_fuel = 0;
     }
     else
     {

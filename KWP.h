@@ -15,15 +15,7 @@
 #define ADR_Central_locking 0x35
 #define ADR_Navigation 0x37
 
-struct KWP_MODULE{
-  String name;
-  uint8_t addr;
-  int baudrate;
-  int *groups;
-  int ngroups;
-};
-
-struct SENSOR {
+struct KWPSensor {
   int type;
   int a;
   int b;
@@ -37,8 +29,8 @@ class KWP {
     ~KWP();
     bool connect(uint8_t addr, int baudrate);
     void disconnect();
-    int readBlock(uint8_t addr, int group, int maxSensorsPerGroup, SENSOR resGroupSensor[]);
-    SENSOR getSensorData(byte k, byte a, byte b);
+    int readBlock(uint8_t addr, int group, int maxSensorsPerGroup, KWPSensor resGroupSensor[]);
+    KWPSensor getSensorData(byte k, byte a, byte b);
     bool isConnected();
     uint8_t getCurrAddr();
   private:

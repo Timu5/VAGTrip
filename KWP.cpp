@@ -25,9 +25,9 @@ bool KWP::connect(uint8_t addr, int baudrate) {
   char s[3];
   int size = 3;
   if (!KWPReceiveBlock(s, 3, size)) return false;
-  if (    (((uint8_t)s[0]) != 0x55)
-     ||   (((uint8_t)s[1]) != 0x01)
-     ||   (((uint8_t)s[2]) != 0x8A)   ){
+  if (    (s[0] != 0x55)
+     ||   (s[1] != 0x01)
+     ||   (s[2] != 0x8A)   ){
     disconnect();
     errorData++;
     return false;
@@ -41,7 +41,7 @@ void KWP::disconnect() {
   connected = false;
 }
 
-int KWP::readBlock(uint8_t addr, int group, int maxSensorsPerBlock, SENSOR resGroupSensor[]) {
+int KWP::readBlock(uint8_t addr, int group, int maxSensorsPerBlock, KWPSensor resGroupSensor[]) {
   char s[64] = { 0x04, blockCounter, 0x29, group, 0x03 };
   if (!KWPSendBlock(s, 5)) return false;
   int size = 0;
@@ -63,7 +63,7 @@ int KWP::readBlock(uint8_t addr, int group, int maxSensorsPerBlock, SENSOR resGr
     byte a=s[3 + idx*3+1];
     byte b=s[3 + idx*3+2];
 
-    SENSOR sensor = getSensorData(k, a, b);
+    KWPSensor sensor = getSensorData(k, a, b);
     {
       resGroupSensor[j].type = sensor.type;
       resGroupSensor[j].a = sensor.a;
@@ -76,8 +76,8 @@ int KWP::readBlock(uint8_t addr, int group, int maxSensorsPerBlock, SENSOR resGr
   return j;
 }
 
-SENSOR KWP::getSensorData(byte k, byte a, byte b) {
-    SENSOR res;
+KWPSensor KWP::getSensorData(byte k, byte a, byte b) {
+    KWPSensor res;
     float v = 0;
     String units = "";
     switch (k){

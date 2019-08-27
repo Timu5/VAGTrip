@@ -33,7 +33,7 @@ int press_time = -1;
 
 ISR(TIMER1_OVF_vect)
 {
-  values[STAT_INST] = pw * rpm * 320 / speed;
+  values[STAT_INST] = pw * rpm * 320 * 0.0006 / speed;
   total_fuel += values[STAT_INST] / (60 * 60);
   values[STAT_DIST] += speed / (60 * 60);
   values[STAT_AVG] += total_fuel / values[STAT_DIST];
@@ -103,9 +103,9 @@ void loop()
   }
   else
   {
-    SENSOR resultBlock[4];
+    KWPSensor resultBlock[4];
     int nSensors = kwp.readBlock(ADR_Engine, 2, 4, resultBlock);
-    //if(resultBlock[0].value != "")
+    if(nSensors == 4)
     {
       pw = resultBlock[2].valuef;
       rpm = resultBlock[0].valuef;

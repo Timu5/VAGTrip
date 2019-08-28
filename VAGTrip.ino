@@ -135,8 +135,28 @@ void loop()
   display.setTextSize(2);
   display.setTextColor(WHITE);
   display.setCursor(0, 20);
+  if(selected == STAT_SPEED || selected == STAT_AVGSPEED  || selected == STAT_OIL)
+  {
+    display.print((int)values[selected]);
+    display.print(units[selected]);
+  }
+  else if(selected == STAT_TIME)
+  {
+    int minuts = (int)(values[STAT_TIME] / 60);
+    int seconds = values[STAT_TIME] - minuts * 60.0;
+    if(minuts < 10)
+      display.print('0');
+    display.print(minuts);
+    display.print(':');
+    if(seconds < 10)
+      display.print('0');
+    display.print(seconds);
+  }
+  else
+  {
   display.print(values[selected]);
   display.print(units[selected]);
+  }
  
   display.display();
   delay(1);

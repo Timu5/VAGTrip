@@ -33,10 +33,11 @@ int button = 0;
 
 ISR(TIMER1_OVF_vect)
 {
-  values[STAT_INST] = pw * rpm * 320 * 0.0006 / speed;
-  total_fuel += values[STAT_INST] / (60 * 60);
+  double used_fuel = (pw * rpm * 320.0) / (1000.0 * 60); // per minut
+  total_fuel += used_fuel / 60;
+  values[STAT_INST] = ((used_fuel * 0.001 * 60) * 100) / speed;
   values[STAT_DIST] += speed / (60 * 60);
-  values[STAT_AVG] += total_fuel / values[STAT_DIST];
+  values[STAT_AVG] = total_fuel * 0.1 / values[STAT_DIST];
   values[STAT_TIME] += 1;
   values[STAT_SPEED] = speed;
   values[STAT_AVGSPEED] = values[STAT_DIST] * 60 * 60 / values[STAT_TIME];

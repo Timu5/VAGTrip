@@ -21,6 +21,7 @@ KWP kwp(KLINE_RX, KLINE_TX);
 
 const char * names[] = { "Instant Consumption", "Average Consumption", "Trip Distance", "Trip Time", "Speed", "Average Speed", "Oil Change" };
 float values[] = { 0, 0, 0, 0, 0, 0, 0 };
+const char* units[] = { "L/KM", "L/KM", "KM", "S", "KM/H", "KM/H", "KM" };
 
 int selected = 0;
 float speed = 100;
@@ -127,14 +128,15 @@ void loop()
   display.setTextSize(1);
   display.setTextColor(WHITE);
   display.setCursor(0,0);
-  display.println(names[selected]);
+  display.print(names[selected]);
   
   display.drawLine(0, 14, 127, 14, WHITE);
   
   display.setTextSize(2);
   display.setTextColor(WHITE);
   display.setCursor(0, 20);
-  display.println(values[selected]);
+  display.print(values[selected]);
+  display.print(units[selected]);
  
   display.display();
   delay(1);

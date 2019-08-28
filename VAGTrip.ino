@@ -36,7 +36,16 @@ ISR(TIMER1_OVF_vect)
 {
   double used_fuel = (pw * rpm * 320.0) / (1000.0 * 60); // per minut
   total_fuel += used_fuel / 60;
+  if(speed < 10)
+  {
+    values[STAT_INST] = used_fuel * 60; // below 10kmh show l/h
+    units[STAT_INST] = "L/H";
+  }
+  else
+  {
   values[STAT_INST] = ((used_fuel * 0.001 * 60) * 100) / speed;
+    units[STAT_INST] = "L/KM";
+  }
   values[STAT_DIST] += speed / (60 * 60);
   values[STAT_AVG] = total_fuel * 0.1 / values[STAT_DIST];
   values[STAT_TIME] += 1;
@@ -60,6 +69,11 @@ void setup()
   display.display();
 
   pinMode(SELECT_BUTTON, INPUT_PULLUP);
+
+  if(values[STAT_OIL] <= 2000)
+  {
+    selected = STAT_OIL;
+  }
 }
 
 void loop()

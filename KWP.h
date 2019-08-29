@@ -15,7 +15,8 @@
 #define ADR_Central_locking 0x35
 #define ADR_Navigation 0x37
 
-struct KWPSensor {
+struct KWPSensor
+{
   int type;
   int a;
   int b;
@@ -23,7 +24,8 @@ struct KWPSensor {
   String units;
 };
 
-class KWP {
+class KWP
+{
   public:
     KWP(uint8_t receivePin, uint8_t transmitPin);
     ~KWP();
@@ -33,6 +35,7 @@ class KWP {
     KWPSensor getSensorData(byte k, byte a, byte b);
     bool isConnected();
     uint8_t getCurrAddr();
+ 
   private:
     uint8_t _OBD_RX_PIN;
     uint8_t _OBD_TX_PIN;
@@ -42,7 +45,7 @@ class KWP {
     uint8_t errorTimeout = 0;
     uint8_t errorData = 0;
 
-    NewSoftwareSerial *obd;
+    NewSoftwareSerial obd;
 
     void obdWrite(uint8_t data);
     uint8_t obdRead();

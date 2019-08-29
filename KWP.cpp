@@ -3,31 +3,25 @@
 
 #define DEBUG_LEVEL 1
 
-KWP::KWP(uint8_t receivePin, uint8_t transmitPin){
+KWP::KWP(uint8_t receivePin, uint8_t transmitPin) : obd(NewSoftwareSerial(receivePin, transmitPin, false))
+{
   _OBD_RX_PIN = receivePin;
   _OBD_TX_PIN = transmitPin;
 
   pinMode(transmitPin, OUTPUT);
   digitalWrite(transmitPin, HIGH);
-
-  obd = new NewSoftwareSerial(receivePin, transmitPin, false); // RX, TX, inverse logic
 }
 
-KWP::~KWP(){
-  delete obd;
-  obd = NULL;
-}
-
-bool KWP::connect(uint8_t addr, int baudrate) {
+bool KWP::connect(uint8_t addr, int baudrate)
+{
   blockCounter = 0;
-  obd->begin(baudrate);
+  obd.begin(baudrate);
   KWP5BaudInit(addr);
   char s[3];
   int size = 3;
   if (!KWPReceiveBlock(s, 3, size)) return false;
-  if (    (s[0] != 0x55)
-     ||   (s[1] != 0x01)
-     ||   (s[2] != 0x8A)   ){
+  if ((s[0] != 0x55) || (s[1] != 0x01) || (s[2] != 0x8A))
+  {
     disconnect();
     errorData++;
     return false;
@@ -37,41 +31,45 @@ bool KWP::connect(uint8_t addr, int baudrate) {
   return true;
 }
 
-void KWP::disconnect() {
+void KWP::disconnect()
+{
   connected = false;
 }
 
-int KWP::readBlock(uint8_t addr, int group, int maxSensorsPerBlock, KWPSensor resGroupSensor[]) {
+int KWP::readBlock(uint8_t addr, int group, int maxSensorsPerBlock, KWPSensor resGroupSensor[])
+{
   char s[64] = { 0x04, blockCounter, 0x29, group, 0x03 };
   if (!KWPSendBlock(s, 5)) return false;
   int size = 0;
   KWPReceiveBlock(s, 64, size);
-  if (s[2] != '\xe7') {
+  if (s[2] != '\xe7')
+  {
     disconnect();
     errorData++;
     return 0;
   }
   int count = (size-4) / 3;
-  if (count > maxSensorsPerBlock) {
+  if (count > maxSensorsPerBlock)
+  {
     disconnect();
     errorData++;
     return 0;
   }
   int j=0;
-  for (int idx=0; idx < count; idx++){
+  for (int idx=0; idx < count; idx++)
+  {
     byte k=s[3 + idx*3];
     byte a=s[3 + idx*3+1];
     byte b=s[3 + idx*3+2];
 
     KWPSensor sensor = getSensorData(k, a, b);
-    {
-      resGroupSensor[j].type = sensor.type;
-      resGroupSensor[j].a = sensor.a;
-      resGroupSensor[j].b = sensor.b;
-      resGroupSensor[j].valuef = sensor.valuef;
-      resGroupSensor[j].units = sensor.units;
-      j++;
-    }
+
+    resGroupSensor[j].type = sensor.type;
+    resGroupSensor[j].a = sensor.a;
+    resGroupSensor[j].b = sensor.b;
+    resGroupSensor[j].valuef = sensor.valuef;
+    resGroupSensor[j].units = sensor.units;
+    j++;
   }
   return j;
 }
@@ -80,7 +78,8 @@ KWPSensor KWP::getSensorData(byte k, byte a, byte b) {
     KWPSensor res;
     float v = 0;
     String units = "";
-    switch (k){
+    switch (k)
+    {
       case 1:  v=0.2*a*b;             units=F("rpm"); break;
       case 2:  v=a*0.002*b;           units=F("%"); break; // case 2:  v=a*0.002*b;            units=F("%%");break;
       case 3:  v=0.002*a*b;           units=F("Deg"); break;
@@ -163,64 +162,77 @@ KWPSensor KWP::getSensorData(byte k, byte a, byte b) {
     return res;
 }
 
-bool KWP::isConnected() {
+bool KWP::isConnected()
+{
   return connected;
 }
 
-void KWP::obdWrite(uint8_t data) {
-  obd->write(data);
+void KWP::obdWrite(uint8_t data)
+{
+  obd.write(data);
 }
 
-uint8_t KWP::obdRead() {
+uint8_t KWP::obdRead()
+{
   unsigned long timeout = millis() + 1000;
-  while (!obd->available()){
-    if (millis() >= timeout) {
+  while (!obd.available())
+  {
+    if (millis() >= timeout) 
+    {
       disconnect();
       errorTimeout++;
       return 0;
     }
   }
-  uint8_t data = obd->read();
+  uint8_t data = obd.read();
   return data;
 }
 
-void KWP::KWP5BaudInit(uint8_t addr){
+void KWP::KWP5BaudInit(uint8_t addr)
+{
   #define bitcount 10
   byte bits[bitcount];
   byte even=1;
   byte bit;
-  for (int i=0; i < bitcount; i++){
+  for (int i=0; i < bitcount; i++)
+  {
     bit=0;
     if (i == 0)  bit = 0;
     else if (i == 8) bit = even; // computes parity bit
     else if (i == 9) bit = 1;
-    else {
+    else
+    {
         bit = (byte) ((addr & (1 << (i-1))) != 0);
         even = even ^ bit;
     }
     bits[i]=bit;
   }
-  for (int i=0; i < bitcount+1; i++){
-    if (i != 0){
+  for (int i=0; i < bitcount+1; i++)
+  {
+    if (i != 0)
+    {
       delay(200);
       if (i == bitcount) break;
     }
-    if (bits[i] == 1){
+    if (bits[i] == 1)
       digitalWrite(_OBD_TX_PIN, HIGH);
-    } else {
-      digitalWrite(_OBD_TX_PIN, LOW);
-    }
+    else
+     digitalWrite(_OBD_TX_PIN, LOW);
   }
-  obd->flush();
+  obd.flush();
 }
 
-bool KWP::KWPSendBlock(char *s, int size) {
-  for (int i=0; i < size; i++){
+bool KWP::KWPSendBlock(char *s, int size)
+{
+  for (int i=0; i < size; i++)
+  {
     uint8_t data = s[i];
     obdWrite(data);
-    if (i < size-1){
+    if (i < size-1)
+    {
       uint8_t complement = obdRead();
-      if (complement != (data ^ 0xFF)){
+      if (complement != (data ^ 0xFF))
+      {
         disconnect();
         errorData++;
         return false;
@@ -231,39 +243,49 @@ bool KWP::KWPSendBlock(char *s, int size) {
   return true;
 }
 
-bool KWP::KWPReceiveBlock(char s[], int maxsize, int &size, bool init_delay) {
+bool KWP::KWPReceiveBlock(char s[], int maxsize, int &size, bool init_delay)
+{
   bool ackeachbyte = false;
   uint8_t data = 0;
   int recvcount = 0;
   if (size == 0) ackeachbyte = true;
-  if (size > maxsize) {
+  if (size > maxsize)
+  {
     return false;
   }
   unsigned long timeout = millis() + 2000;  // TODO: This allows connect to different Modules
-  while ((recvcount == 0) || (recvcount != size)) {
-    while (obd->available()){
+  while ((recvcount == 0) || (recvcount != size))
+  {
+    while (obd.available())
+    {
       data = obdRead();
       s[recvcount] = data;
       recvcount++;
-      if ((size == 0) && (recvcount == 1)) {
+      if ((size == 0) && (recvcount == 1))
+      {
         size = data + 1;
-        if (size > maxsize) {
+        if (size > maxsize)
+        {
           return false;
         }
       }
-      if ((ackeachbyte) && (recvcount == 2)) {
-        if (data != blockCounter){
+      if ((ackeachbyte) && (recvcount == 2))
+      {
+        if (data != blockCounter)
+        {
           disconnect();
           errorData++;
           return false;
         }
       }
-      if ( ((!ackeachbyte) && (recvcount == size)) ||  ((ackeachbyte) && (recvcount < size)) ){
+      if ( ((!ackeachbyte) && (recvcount == size)) ||  ((ackeachbyte) && (recvcount < size)))
+      {
         obdWrite(data ^ 0xFF);
       }
       timeout = millis() + 1000;
     }
-    if (millis() >= timeout){
+    if (millis() >= timeout)
+    {
       disconnect();
       errorTimeout++;
       return false;
@@ -273,19 +295,22 @@ bool KWP::KWPReceiveBlock(char s[], int maxsize, int &size, bool init_delay) {
   return true;
 }
 
-bool KWP::KWPSendAckBlock() {
+bool KWP::KWPSendAckBlock()
+{
   char buf[4] = { 0x03, blockCounter, 0x09, 0x03 };
   return (KWPSendBlock(buf, 4));
 }
 
-bool KWP::readConnectBlocks() {
+bool KWP::readConnectBlocks()
+{
   while (true){
     int size = 0;
     char s[64];
     if (!(KWPReceiveBlock(s, 64, size))) return false;
     if (size == 0) return false;
     if (s[2] == '\x09') break;
-    if (s[2] != '\xF6') {
+    if (s[2] != '\xF6')
+    {
       disconnect();
       errorData++;
       return false;

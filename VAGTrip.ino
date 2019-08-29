@@ -25,11 +25,11 @@
 
 struct TripC
 {
-  uint8_t selected = 0;
-  float speed = 100;
-  float pw = 10;
-  float rpm = 3000;
-  float total_fuel = 0;
+  uint8_t selected;
+  float speed;
+  float pw;
+  float rpm;
+  float total_fuel;
   float values[7];
 };
 
@@ -40,16 +40,16 @@ TripC trip;
 const char * names[] = { "Instant Consumption", "Average Consumption", "Trip Distance", "Trip Time", "Speed", "Average Speed", "Oil Change" };
 const char* units[] = { "L/KM", "L/KM", "KM", "S", "KM/H", "KM/H", "KM" };
 
-unsigned long press_time = 0;
-int button = 0;
+unsigned long press_time = 0; // press start time in miliseconds
+int button = 0; // is button currently pressed or not
 
-unsigned long last_speed_rise = 0;
-const float speed_const = 200;
-const float fuel_const = 320.0 / 60;
+unsigned long last_speed_rise = 0; // last time speed pin rise
+const float speed_const = 200; // speed per rev
+const float fuel_const = 320.0 / 60; // injector fuel flow divided by 60 seconds
 
 ISR(TIMER1_OVF_vect)
 {
-  double used_fuel = (trip.pw * trip.rpm * fuel_const) / 1000.0; // per minut
+  double used_fuel = (trip.pw * trip.rpm * fuel_const) / 1000.0; // fuel per minut
   trip.total_fuel += used_fuel / 60;
   if(trip.speed < 10)
   {
@@ -86,11 +86,12 @@ void setup()
   digitalWrite(POWER_PIN, HIGH);
   pinMode(SENSE_PIN, INPUT_PULLUP);
 
-  EEPROM.get(0, trip);
+  EEPROM.get(0, trip); // load data from eeprom
 
   pinMode(SPEED_PIN, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(SPEED_PIN), speed_int, RISING);
 
+  // Add 1 second interrupt 
   noInterrupts();
   TCCR1A = 0;
   TCCR1B = 0;
@@ -105,6 +106,7 @@ void setup()
 
   pinMode(SELECT_BUTTON, INPUT_PULLUP);
 
+  // if we are close to oil change switch to oil change due screen
   if(trip.values[STAT_OIL] <= 1000)
   {
     trip.selected = STAT_OIL;
@@ -118,11 +120,11 @@ void loop()
     // power off
     display.ssd1306_command(SSD1306_DISPLAYOFF);
     digitalWrite(POWER_PIN, LOW);
-    EEPROM.put(0, trip);
+    EEPROM.put(0, trip);  // save data to eeprom
     while(1);
   }
 
-  if(digitalRead(SELECT_BUTTON) == LOW && button == 0)
+  if(digitalRead(SELECT_BUTTON) == LOW && button == 0) // button just presssed
   {
     delay(50); // debounce
     if(digitalRead(SELECT_BUTTON) == LOW)
@@ -132,14 +134,14 @@ void loop()
       button = 1;
     }
   }
-  else if(digitalRead(SELECT_BUTTON) == HIGH && button == 1)
+  else if(digitalRead(SELECT_BUTTON) == HIGH && button == 1) // button just depresssed
   {
     delay(50); // debounce
     if(digitalRead(SELECT_BUTTON) == HIGH)
     {
       if(press_time != 0)
       {
-        trip.selected = (trip.selected + 1) % 7;
+        trip.selected = (trip.selected + 1) % 7; // next screen
       }
       button = 0;
       press_time = 0;
@@ -173,7 +175,7 @@ void loop()
   else
   {
     KWPSensor resultBlock[4];
-    int nSensors = kwp.readBlock(ADR_Engine, 2, 4, resultBlock);
+    int nSensors = kwp.readBlock(ADR_Engine, 2, 4, resultBlock); // get ecu data using kline
     if(nSensors == 4)
     {
       trip.pw = resultBlock[2].value;

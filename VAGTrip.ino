@@ -3,11 +3,8 @@
 #include <Adafruit_SSD1306.h>
 #include "KWP.h"
 
-Adafruit_SSD1306 display(-1);
-
 #define KLINE_RX 2
 #define KLINE_TX 3
-KWP kwp(KLINE_RX, KLINE_TX);
 
 #define SELECT_BUTTON 5
 
@@ -22,46 +19,53 @@ KWP kwp(KLINE_RX, KLINE_TX);
 #define STAT_AVGSPEED 5
 #define STAT_OIL 6
 
-const char * names[] = { "Instant Consumption", "Average Consumption", "Trip Distance", "Trip Time", "Speed", "Average Speed", "Oil Change" };
-float values[] = { 0, 0, 0, 0, 0, 0, 0 };
-const char* units[] = { "L/KM", "L/KM", "KM", "S", "KM/H", "KM/H", "KM" };
+struct TripC
+{
+  uint8_t selected = 0;
+  float speed = 100;
+  float pw = 10;
+  float rpm = 3000;
+  float total_fuel = 0;
+  float values[7];
+};
 
-int selected = 0;
-float speed = 100;
-float pw = 10;
-float rpm = 3000;
-float total_fuel = 0;
+Adafruit_SSD1306 display(-1);
+KWP kwp(KLINE_RX, KLINE_TX);
+
+TripC trip;
+const char * names[] = { "Instant Consumption", "Average Consumption", "Trip Distance", "Trip Time", "Speed", "Average Speed", "Oil Change" };
+const char* units[] = { "L/KM", "L/KM", "KM", "S", "KM/H", "KM/H", "KM" };
 
 unsigned long press_time = 0;
 int button = 0;
 
 ISR(TIMER1_OVF_vect)
 {
-  double used_fuel = (pw * rpm * 320.0) / (1000.0 * 60); // per minut
-  total_fuel += used_fuel / 60;
-  if(speed < 10)
+  double used_fuel = (trip.pw * trip.rpm * 320.0) / (1000.0 * 60); // per minut
+  trip.total_fuel += used_fuel / 60;
+  if(trip.speed < 10)
   {
-    values[STAT_INST] = used_fuel * 60; // below 10kmh show l/h
+    trip.values[STAT_INST] = used_fuel * 60; // below 10kmh show l/h
     units[STAT_INST] = "L/H";
   }
   else
   {
-    values[STAT_INST] = ((used_fuel * 0.001 * 60) * 100) / speed;
+    trip.values[STAT_INST] = ((used_fuel * 0.001 * 60) * 100) / trip.speed;
     units[STAT_INST] = "L/KM";
   }
-  values[STAT_DIST] += speed / (60 * 60);
-  values[STAT_AVG] = total_fuel * 0.1 / values[STAT_DIST];
-  values[STAT_TIME] += 1;
-  values[STAT_SPEED] = speed;
-  values[STAT_AVGSPEED] = values[STAT_DIST] * 60 * 60 / values[STAT_TIME];
-  values[STAT_OIL] -= speed / (60 * 60);
+  trip.values[STAT_DIST] += trip.speed / (60 * 60);
+  trip.values[STAT_AVG] = trip.total_fuel * 0.1 / trip.values[STAT_DIST];
+  trip.values[STAT_TIME] += 1;
+  trip.values[STAT_SPEED] = trip.speed;
+  trip.values[STAT_AVGSPEED] = trip.values[STAT_DIST] * 60 * 60 / trip.values[STAT_TIME];
+  trip.values[STAT_OIL] -= trip.speed / (60 * 60);
 }
 
 void setup()
 {
   pinMode(POWER_PIN, OUTPUT);
   digitalWrite(POWER_PIN, HIGH);
-  pinMode(SENSE_PIN, INPUT);
+  pinMode(SENSE_PIN, INPUT_PULLUP);
 
   noInterrupts();
   TCCR1A = 0;
@@ -77,9 +81,9 @@ void setup()
 
   pinMode(SELECT_BUTTON, INPUT_PULLUP);
 
-  if(values[STAT_OIL] <= 2000)
+  if(trip.values[STAT_OIL] <= 1000)
   {
-    selected = STAT_OIL;
+    trip.selected = STAT_OIL;
   }
 }
 
@@ -110,7 +114,7 @@ void loop()
     {
       if(press_time != 0)
       {
-        selected = (selected + 1) % 7;
+        trip.selected = (trip.selected + 1) % 7;
       }
       button = 0;
       press_time = 0;
@@ -120,16 +124,16 @@ void loop()
   if((button == 1) && (press_time != 0) && (millis() - press_time >= 2000UL))
   {
     // long press, reset
-    if(selected < STAT_OIL)
+    if(trip.selected < STAT_OIL)
     {
-      values[STAT_AVG] = 0;
-      values[STAT_DIST] = 0;
-      values[STAT_TIME] = 0;
-      total_fuel = 0;
+      trip.values[STAT_AVG] = 0;
+      trip.values[STAT_DIST] = 0;
+      trip.values[STAT_TIME] = 0;
+      trip.total_fuel = 0;
     }
     else
     {
-      values[STAT_OIL] = 15000; // oil change interval
+      trip.values[STAT_OIL] = 15000; // oil change interval
     }
     press_time = 0;
   }
@@ -147,8 +151,8 @@ void loop()
     int nSensors = kwp.readBlock(ADR_Engine, 2, 4, resultBlock);
     if(nSensors == 4)
     {
-      pw = resultBlock[2].valuef;
-      rpm = resultBlock[0].valuef;
+      trip.pw = resultBlock[2].valuef;
+      trip.rpm = resultBlock[0].valuef;
     }
   }
 
@@ -157,22 +161,22 @@ void loop()
   display.setTextSize(1);
   display.setTextColor(WHITE);
   display.setCursor(0,0);
-  display.print(names[selected]);
+  display.print(names[trip.selected]);
   
   display.drawLine(0, 14, 127, 14, WHITE);
   
   display.setTextSize(2);
   display.setTextColor(WHITE);
   display.setCursor(0, 20);
-  if(selected == STAT_SPEED || selected == STAT_AVGSPEED  || selected == STAT_OIL)
+  if(trip.selected == STAT_SPEED || trip.selected == STAT_AVGSPEED  || trip.selected == STAT_OIL)
   {
-    display.print((int)values[selected]);
-    display.print(units[selected]);
+    display.print((int)trip.values[trip.selected]);
+    display.print(units[trip.selected]);
   }
-  else if(selected == STAT_TIME)
+  else if(trip.selected == STAT_TIME)
   {
-    int minuts = (int)(values[STAT_TIME] / 60);
-    int seconds = values[STAT_TIME] - minuts * 60.0;
+    int minuts = (int)(trip.values[STAT_TIME] / 60);
+    int seconds = trip.values[STAT_TIME] - minuts * 60.0;
     if(minuts < 10)
       display.print('0');
     display.print(minuts);
@@ -183,8 +187,8 @@ void loop()
   }
   else
   {
-    display.print(values[selected]);
-    display.print(units[selected]);
+    display.print(trip.values[trip.selected]);
+    display.print(units[trip.selected]);
   }
  
   display.display();

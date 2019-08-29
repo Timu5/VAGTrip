@@ -4,13 +4,16 @@
 #include <EEPROM.h>
 #include "KWP.h"
 
-#define KLINE_RX 2
-#define KLINE_TX 3
+#define SPEED_PIN 3
 
 #define SELECT_BUTTON 5
 
 #define SENSE_PIN 6
 #define POWER_PIN 7
+//8, 9 reserved for mode and reset
+
+#define KLINE_RX 10
+#define KLINE_TX 11
 
 #define STAT_INST 0
 #define STAT_AVG 1
@@ -40,9 +43,13 @@ const char* units[] = { "L/KM", "L/KM", "KM", "S", "KM/H", "KM/H", "KM" };
 unsigned long press_time = 0;
 int button = 0;
 
+unsigned long last_speed_rise = 0;
+const float speed_const = 200;
+const float fuel_const = 320.0;
+
 ISR(TIMER1_OVF_vect)
 {
-  double used_fuel = (trip.pw * trip.rpm * 320.0) / (1000.0 * 60); // per minut
+  double used_fuel = (trip.pw * trip.rpm * fuel_const) / (1000.0 * 60); // per minut
   trip.total_fuel += used_fuel / 60;
   if(trip.speed < 10)
   {
@@ -62,6 +69,17 @@ ISR(TIMER1_OVF_vect)
   trip.values[STAT_OIL] -= trip.speed / (60 * 60);
 }
 
+void speed_int()
+{
+  if(last_speed_rise != 0)
+  {
+    // calc speed
+    unsigned long time = millis() - last_speed_rise;
+    trip.speed = speed_const / time;
+  }
+  last_speed_rise = millis();
+}
+
 void setup()
 {
   pinMode(POWER_PIN, OUTPUT);
@@ -69,6 +87,9 @@ void setup()
   pinMode(SENSE_PIN, INPUT_PULLUP);
 
   EEPROM.get(0, trip);
+
+  pinMode(SPEED_PIN, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(SPEED_PIN), speed_int, RISING);
 
   noInterrupts();
   TCCR1A = 0;

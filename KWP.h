@@ -17,18 +17,17 @@
 
 struct KWPSensor
 {
-  int type;
-  int a;
-  int b;
-  float valuef;
-  String units;
+  uint8_t type;
+  uint8_t a;
+  uint8_t b;
+  float value;
+  char* units;
 };
 
 class KWP
 {
   public:
     KWP(uint8_t receivePin, uint8_t transmitPin);
-    ~KWP();
     bool connect(uint8_t addr, int baudrate);
     void disconnect();
     int readBlock(uint8_t addr, int group, int maxSensorsPerGroup, KWPSensor resGroupSensor[]);

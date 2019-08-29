@@ -45,11 +45,11 @@ int button = 0;
 
 unsigned long last_speed_rise = 0;
 const float speed_const = 200;
-const float fuel_const = 320.0;
+const float fuel_const = 320.0 / 60;
 
 ISR(TIMER1_OVF_vect)
 {
-  double used_fuel = (trip.pw * trip.rpm * fuel_const) / (1000.0 * 60); // per minut
+  double used_fuel = (trip.pw * trip.rpm * fuel_const) / 1000.0; // per minut
   trip.total_fuel += used_fuel / 60;
   if(trip.speed < 10)
   {
@@ -176,8 +176,8 @@ void loop()
     int nSensors = kwp.readBlock(ADR_Engine, 2, 4, resultBlock);
     if(nSensors == 4)
     {
-      trip.pw = resultBlock[2].valuef;
-      trip.rpm = resultBlock[0].valuef;
+      trip.pw = resultBlock[2].value;
+      trip.rpm = resultBlock[0].value;
     }
   }
 

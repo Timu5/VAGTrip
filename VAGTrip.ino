@@ -1,6 +1,7 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include <EEPROM.h>
 #include "KWP.h"
 
 #define KLINE_RX 2
@@ -67,6 +68,8 @@ void setup()
   digitalWrite(POWER_PIN, HIGH);
   pinMode(SENSE_PIN, INPUT_PULLUP);
 
+  EEPROM.get(0, trip);
+
   noInterrupts();
   TCCR1A = 0;
   TCCR1B = 0;
@@ -94,6 +97,7 @@ void loop()
     // power off
     display.ssd1306_command(SSD1306_DISPLAYOFF);
     digitalWrite(POWER_PIN, LOW);
+    EEPROM.put(0, trip);
     while(1);
   }
 

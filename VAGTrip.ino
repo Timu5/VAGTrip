@@ -11,6 +11,9 @@ KWP kwp(KLINE_RX, KLINE_TX);
 
 #define SELECT_BUTTON 5
 
+#define SENSE_PIN 6
+#define POWER_PIN 7
+
 #define STAT_INST 0
 #define STAT_AVG 1
 #define STAT_DIST 2
@@ -43,7 +46,7 @@ ISR(TIMER1_OVF_vect)
   }
   else
   {
-  values[STAT_INST] = ((used_fuel * 0.001 * 60) * 100) / speed;
+    values[STAT_INST] = ((used_fuel * 0.001 * 60) * 100) / speed;
     units[STAT_INST] = "L/KM";
   }
   values[STAT_DIST] += speed / (60 * 60);
@@ -56,6 +59,10 @@ ISR(TIMER1_OVF_vect)
 
 void setup()
 {
+  pinMode(POWER_PIN, OUTPUT);
+  digitalWrite(POWER_PIN, HIGH);
+  pinMode(SENSE_PIN, INPUT);
+
   noInterrupts();
   TCCR1A = 0;
   TCCR1B = 0;
@@ -78,6 +85,14 @@ void setup()
 
 void loop()
 {
+  if(digitalRead(SENSE_PIN) == LOW)
+  {
+    // power off
+    display.ssd1306_command(SSD1306_DISPLAYOFF);
+    digitalWrite(POWER_PIN, LOW);
+    while(1);
+  }
+
   if(digitalRead(SELECT_BUTTON) == LOW && button == 0)
   {
     delay(50); // debounce
@@ -168,8 +183,8 @@ void loop()
   }
   else
   {
-  display.print(values[selected]);
-  display.print(units[selected]);
+    display.print(values[selected]);
+    display.print(units[selected]);
   }
  
   display.display();

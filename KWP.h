@@ -31,6 +31,8 @@ class KWP
     bool connect(uint8_t addr, int baudrate);
     void disconnect();
     int readBlock(uint8_t addr, int group, int maxSensorsPerGroup, KWPSensor resGroupSensor[]);
+    uint8_t getFaultsCount();
+    void clearFaults();
     KWPSensor getSensorData(byte k, byte a, byte b);
     bool isConnected();
     uint8_t getCurrAddr();

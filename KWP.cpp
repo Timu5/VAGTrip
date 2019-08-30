@@ -14,13 +14,12 @@ bool KWP::connect(uint8_t addr, int baudrate)
 { 
   blockCounter = 0;
   obd.begin(baudrate);
-  
-  digitalWrite(_OBD_TX_PIN, LOW); delay(200); // start
-  digitalWrite(_OBD_TX_PIN, HIGH); delay(400); // first two bits
-  digitalWrite(_OBD_TX_PIN, LOW); delay(400); // second pair
-  digitalWrite(_OBD_TX_PIN, HIGH); delay(400); // third pair
-  digitalWrite(_OBD_TX_PIN, LOW); delay(400); // last pair
-  digitalWrite(_OBD_TX_PIN, HIGH); delay(200); // stop bit
+
+  for(uint8_t i = 0; i < 8; i++)
+  {
+    digitalWrite(_OBD_TX_PIN, i % 2 ? HIGH : LOW);
+    delay((0b011110 >> i) & 1 ? 400 : 200);
+  }
   obd.flush();
 
   char s[3];
@@ -94,6 +93,47 @@ int KWP::readBlock(uint8_t addr, int group, int maxSensorsPerBlock, KWPSensor re
     j++;
   }
   return j;
+}
+
+uint8_t KWP::getFaultsCount()
+{
+  int count = 0;
+  char s[64] = { 0x03, blockCounter, 0x07, 0x03 };
+  if (!KWPSend(s, 4)) return false;
+  int size = 0;
+  while (KWPReceive(s, 64, size))
+  {
+    if (s[2] == 0xFC)
+    {
+      count += (size - 4) / 3;
+    }
+    else if (s[2] == 0x09)
+    {
+      // no more codes!
+      break;
+    }
+    else
+    {
+      disconnect();
+      errorData++;
+      return 0;
+    }
+  }
+
+  return count;
+}
+
+void KWP::clearFaults()
+{
+  char s[64] = { 0x03, blockCounter, 0x05, 0x03 };
+  if (!KWPSend(s, 4)) return;
+  int size = 0;
+  KWPReceive(s, 64, size);
+  if (s[2] != 0x09)
+  {
+    disconnect();
+    errorData++;
+  }
 }
 
 KWPSensor KWP::getSensorData(byte k, byte a, byte b)

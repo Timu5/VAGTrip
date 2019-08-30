@@ -7,10 +7,11 @@
 #define SPEED_PIN 3
 
 #define SELECT_BUTTON 5
+#define MODE_BUTTON 8
+#define RESET_BUTTON 9
 
 #define SENSE_PIN 6
 #define POWER_PIN 7
-//8, 9 reserved for mode and reset
 
 #define KLINE_RX 10
 #define KLINE_TX 11
@@ -97,6 +98,9 @@ void setup()
 
   EEPROM.get(0, trip); // load data from eeprom
 
+  trip.mode = MODE_VAG;
+  trip.block = 1;
+
   pinMode(SPEED_PIN, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(SPEED_PIN), speed_int, RISING);
 
@@ -114,6 +118,8 @@ void setup()
   display.display();
 
   pinMode(SELECT_BUTTON, INPUT_PULLUP);
+  pinMode(MODE_BUTTON, INPUT_PULLUP);
+  pinMode(RESET_BUTTON, INPUT_PULLUP);
 
   // if we are close to oil change switch to oil change due screen
   if (trip.values[STAT_OIL] <= 1000)
@@ -132,6 +138,15 @@ void loop()
     EEPROM.put(0, trip); // save data to eeprom
     while (1)
       ;
+  }
+
+  if(digitalRead(MODE_BUTTON) == LOW)
+  {
+    trip.mode = MODE_TRIP;
+  }
+  else
+  {
+    trip.mode = MODE_VAG;
   }
 
   if (digitalRead(SELECT_BUTTON) == LOW && button == 0) // button just presssed
@@ -172,22 +187,32 @@ void loop()
     }
   }
 
-  if ((trip.mode == MODE_TRIP) && (button == 1) && (press_time != 0) && (millis() - press_time >= 2000UL))
+  if (((button == 1) && (press_time != 0) && (millis() - press_time >= 2000UL)) || digitalRead(RESET_BUTTON))
   {
-    // long press, reset
-    if (trip.selected < STAT_OIL)
+    if (trip.mode == MODE_TRIP)
     {
-      trip.values[STAT_AVG] = 0;
-      trip.values[STAT_DIST] = 0;
-      trip.values[STAT_TIME] = 0;
-      trip.total_fuel = 0;
+      // long press, reset
+      if (trip.selected < STAT_OIL)
+      {
+        trip.values[STAT_AVG] = 0;
+        trip.values[STAT_DIST] = 0;
+        trip.values[STAT_TIME] = 0;
+        trip.total_fuel = 0;
+      }
+      else
+      {
+        trip.values[STAT_OIL] = 15000; // oil change interval
+      }
+      redraw = 1;
     }
     else
     {
-      trip.values[STAT_OIL] = 15000; // oil change interval
+      trip.sensor = 0;
+      trip.block = 1;
     }
+    
     press_time = 0;
-    redraw = 1;
+    
   }
 
   if (!kwp.isConnected())

@@ -95,17 +95,27 @@ int KWP::readBlock(uint8_t addr, int group, int maxSensorsPerBlock, KWPSensor re
   return j;
 }
 
-uint8_t KWP::getFaultsCount()
+uint8_t KWP::getFaults(uint16_t *buffer, uint8_t maxsize)
 {
-  int count = 0;
-  char s[64] = { 0x03, blockCounter, 0x07, 0x03 };
-  if (!KWPSend(s, 4)) return false;
+ 
+  char s[64] = {0x03, blockCounter, 0x07, 0x03};
+  if (!KWPSend(s, 4))  return false;
   int size = 0;
+  int count = 0;
   while (KWPReceive(s, 64, size))
   {
     if (s[2] == 0xFC)
     {
-      count += (size - 4) / 3;
+      int n = (size - 4) / 3;
+      for(int i = 0; i < n; i++)
+      {
+        if(count < maxsize)
+        {
+          if(buffer)
+            buffer[count] = (s[3 + i * 3] << 8) + s[4 + i * 3];
+          count++;
+        }
+      }
     }
     else if (s[2] == 0x09)
     {
@@ -120,7 +130,15 @@ uint8_t KWP::getFaultsCount()
     }
   }
 
+  if(count == 1 && buffer[0] == 0xFFFF)
+    count = 0;
+
   return count;
+}
+
+uint8_t KWP::getFaultsCount()
+{
+  return getFaults(NULL, 128);
 }
 
 void KWP::clearFaults()

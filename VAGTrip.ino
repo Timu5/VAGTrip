@@ -23,6 +23,9 @@
 #define STAT_AVGSPEED 5
 #define STAT_OIL 6
 
+#define MODE_TRIP 0
+#define MODE_VAG 1
+
 struct TripC
 {
   uint8_t selected;
@@ -31,21 +34,24 @@ struct TripC
   float rpm;
   float total_fuel;
   float values[7];
+  uint8_t mode;
+  uint8_t block; // vag mesuring block
+  uint8_t sensor; // sensor numer in block
 };
 
 Adafruit_SSD1306 display(-1);
 KWP kwp(KLINE_RX, KLINE_TX);
 
 TripC trip;
-const char * names[] = { "Instant Consumption", "Average Consumption", "Trip Distance", "Trip Time", "Speed", "Average Speed", "Oil Change" };
-const char* units[] = { "L/KM", "L/KM", "KM", "S", "KM/H", "KM/H", "KM" };
+const char *names[] = {"Instant Consumption", "Average Consumption", "Trip Distance", "Trip Time", "Speed", "Average Speed", "Oil Change"};
+const char *units[] = {"L/KM", "L/KM", "KM", "S", "KM/H", "KM/H", "KM"};
 
 unsigned long press_time = 0; // press start time in miliseconds
-int button = 0; // is button currently pressed or not
+int button = 0;               // is button currently pressed or not
 
-unsigned long last_speed_rise = 0; // last time speed pin rise
-const float speed_const = 200; // speed per rev
-const float fuel_const = 320.0 / 60; // injector fuel flow divided by 60 seconds
+unsigned long last_speed_rise = 0;   // last time speed pin rise
+const float speed_const = 200;       // speed per rev
+const float fuel_const = 320.0 / 60; // injector fuel flow (in cc/min) divided by 60 seconds
 
 uint8_t redraw = 1; // is redraw needed
 
@@ -53,7 +59,7 @@ ISR(TIMER1_OVF_vect)
 {
   double used_fuel = (trip.pw * trip.rpm * fuel_const) / 1000.0; // fuel per minut
   trip.total_fuel += used_fuel / 60;
-  if(trip.speed < 10)
+  if (trip.speed < 10)
   {
     trip.values[STAT_INST] = used_fuel * 60; // below 10kmh show l/h
     units[STAT_INST] = "L/H";
@@ -74,7 +80,7 @@ ISR(TIMER1_OVF_vect)
 
 void speed_int()
 {
-  if(last_speed_rise != 0)
+  if (last_speed_rise != 0)
   {
     // calc speed
     unsigned long time = millis() - last_speed_rise;
@@ -94,7 +100,7 @@ void setup()
   pinMode(SPEED_PIN, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(SPEED_PIN), speed_int, RISING);
 
-  // Add 1 second interrupt 
+  // Add 1 second interrupt
   noInterrupts();
   TCCR1A = 0;
   TCCR1B = 0;
@@ -110,7 +116,7 @@ void setup()
   pinMode(SELECT_BUTTON, INPUT_PULLUP);
 
   // if we are close to oil change switch to oil change due screen
-  if(trip.values[STAT_OIL] <= 1000)
+  if (trip.values[STAT_OIL] <= 1000)
   {
     trip.selected = STAT_OIL;
   }
@@ -118,33 +124,47 @@ void setup()
 
 void loop()
 {
-  if(digitalRead(SENSE_PIN) == LOW)
+  if (digitalRead(SENSE_PIN) == LOW)
   {
     // power off
     display.ssd1306_command(SSD1306_DISPLAYOFF);
     digitalWrite(POWER_PIN, LOW);
-    EEPROM.put(0, trip);  // save data to eeprom
-    while(1);
+    EEPROM.put(0, trip); // save data to eeprom
+    while (1)
+      ;
   }
 
-  if(digitalRead(SELECT_BUTTON) == LOW && button == 0) // button just presssed
+  if (digitalRead(SELECT_BUTTON) == LOW && button == 0) // button just presssed
   {
     delay(50); // debounce
-    if(digitalRead(SELECT_BUTTON) == LOW)
+    if (digitalRead(SELECT_BUTTON) == LOW)
     {
       // button pressed
       press_time = millis();
       button = 1;
     }
   }
-  else if(digitalRead(SELECT_BUTTON) == HIGH && button == 1) // button just depresssed
+  else if (digitalRead(SELECT_BUTTON) == HIGH && button == 1) // button just depresssed
   {
     delay(50); // debounce
-    if(digitalRead(SELECT_BUTTON) == HIGH)
+    if (digitalRead(SELECT_BUTTON) == HIGH)
     {
-      if(press_time != 0)
+      if (press_time != 0)
       {
-        trip.selected = (trip.selected + 1) % 7; // next screen
+        if(trip.mode == MODE_TRIP)
+        {
+          trip.selected = (trip.selected + 1) % 7; // next trip computer screen
+        }
+        else
+        {
+          trip.sensor++;
+          if(trip.sensor >= 4)
+          {
+            trip.block++;
+            trip.sensor = 0;
+          }
+        }
+        
         redraw = 1;
       }
       button = 0;
@@ -152,10 +172,10 @@ void loop()
     }
   }
 
-  if((button == 1) && (press_time != 0) && (millis() - press_time >= 2000UL))
+  if ((trip.mode == MODE_TRIP) && (button == 1) && (press_time != 0) && (millis() - press_time >= 2000UL))
   {
     // long press, reset
-    if(trip.selected < STAT_OIL)
+    if (trip.selected < STAT_OIL)
     {
       trip.values[STAT_AVG] = 0;
       trip.values[STAT_DIST] = 0;
@@ -170,9 +190,9 @@ void loop()
     redraw = 1;
   }
 
-  if(!kwp.isConnected())
+  if (!kwp.isConnected())
   {
-    if(!kwp.connect(ADR_Engine, 10400))
+    if (!kwp.connect(ADR_Engine, 10400))
     {
       // can't connect to ecu
     }
@@ -181,14 +201,38 @@ void loop()
   {
     KWPSensor resultBlock[4];
     int nSensors = kwp.readBlock(ADR_Engine, 2, 4, resultBlock); // get ecu data using kline
-    if(nSensors == 4)
+    if (nSensors == 4)
     {
       trip.pw = resultBlock[2].value;
       trip.rpm = resultBlock[0].value;
     }
+    if (trip.mode == MODE_VAG)
+    {
+      nSensors = kwp.readBlock(ADR_Engine, trip.block, 4, resultBlock);
+
+      display.clearDisplay();
+
+      display.setTextSize(1);
+      display.setTextColor(WHITE);
+      display.setCursor(0, 0);
+      display.print(trip.block);
+      display.print(" - ");
+      display.print(trip.sensor);
+
+      display.drawLine(0, 14, 127, 14, WHITE);
+
+      display.setTextSize(2);
+      display.setTextColor(WHITE);
+      display.setCursor(0, 20);
+
+      display.print(resultBlock[trip.sensor].value);
+      display.print(resultBlock[trip.sensor].units);
+     
+      display.display();
+    }
   }
 
-  if (redraw)
+  if (redraw && trip.mode == MODE_TRIP)
   {
     display.clearDisplay();
 

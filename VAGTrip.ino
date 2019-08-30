@@ -47,6 +47,8 @@ unsigned long last_speed_rise = 0; // last time speed pin rise
 const float speed_const = 200; // speed per rev
 const float fuel_const = 320.0 / 60; // injector fuel flow divided by 60 seconds
 
+uint8_t redraw = 1; // is redraw needed
+
 ISR(TIMER1_OVF_vect)
 {
   double used_fuel = (trip.pw * trip.rpm * fuel_const) / 1000.0; // fuel per minut
@@ -67,6 +69,7 @@ ISR(TIMER1_OVF_vect)
   trip.values[STAT_SPEED] = trip.speed;
   trip.values[STAT_AVGSPEED] = trip.values[STAT_DIST] * 60 * 60 / trip.values[STAT_TIME];
   trip.values[STAT_OIL] -= trip.speed / (60 * 60);
+  redraw = 1;
 }
 
 void speed_int()
@@ -142,6 +145,7 @@ void loop()
       if(press_time != 0)
       {
         trip.selected = (trip.selected + 1) % 7; // next screen
+        redraw = 1;
       }
       button = 0;
       press_time = 0;
@@ -163,6 +167,7 @@ void loop()
       trip.values[STAT_OIL] = 15000; // oil change interval
     }
     press_time = 0;
+    redraw = 1;
   }
 
   if(!kwp.isConnected())
@@ -183,41 +188,45 @@ void loop()
     }
   }
 
-  display.clearDisplay();
-	
-  display.setTextSize(1);
-  display.setTextColor(WHITE);
-  display.setCursor(0,0);
-  display.print(names[trip.selected]);
-  
-  display.drawLine(0, 14, 127, 14, WHITE);
-  
-  display.setTextSize(2);
-  display.setTextColor(WHITE);
-  display.setCursor(0, 20);
-  if(trip.selected == STAT_SPEED || trip.selected == STAT_AVGSPEED  || trip.selected == STAT_OIL)
+  if (redraw)
   {
-    display.print((int)trip.values[trip.selected]);
-    display.print(units[trip.selected]);
+    display.clearDisplay();
+
+    display.setTextSize(1);
+    display.setTextColor(WHITE);
+    display.setCursor(0, 0);
+    display.print(names[trip.selected]);
+
+    display.drawLine(0, 14, 127, 14, WHITE);
+
+    display.setTextSize(2);
+    display.setTextColor(WHITE);
+    display.setCursor(0, 20);
+    if (trip.selected == STAT_SPEED || trip.selected == STAT_AVGSPEED || trip.selected == STAT_OIL)
+    {
+      display.print((int)trip.values[trip.selected]);
+      display.print(units[trip.selected]);
+    }
+    else if (trip.selected == STAT_TIME)
+    {
+      int minuts = (int)(trip.values[STAT_TIME] / 60);
+      int seconds = trip.values[STAT_TIME] - minuts * 60.0;
+      if (minuts < 10)
+        display.print('0');
+      display.print(minuts);
+      display.print(':');
+      if (seconds < 10)
+        display.print('0');
+      display.print(seconds);
+    }
+    else
+    {
+      display.print(trip.values[trip.selected]);
+      display.print(units[trip.selected]);
+    }
+
+    display.display();
+
+    redraw = 0;
   }
-  else if(trip.selected == STAT_TIME)
-  {
-    int minuts = (int)(trip.values[STAT_TIME] / 60);
-    int seconds = trip.values[STAT_TIME] - minuts * 60.0;
-    if(minuts < 10)
-      display.print('0');
-    display.print(minuts);
-    display.print(':');
-    if(seconds < 10)
-      display.print('0');
-    display.print(seconds);
-  }
-  else
-  {
-    display.print(trip.values[trip.selected]);
-    display.print(units[trip.selected]);
-  }
- 
-  display.display();
-  delay(1);
 }

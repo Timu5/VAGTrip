@@ -48,11 +48,9 @@ class KWP
 
     void obdWrite(uint8_t data);
     uint8_t obdRead();
-    void KWP5BaudInit(uint8_t addr);
-    bool KWPSendBlock(char *s, int size);
-    bool KWPReceiveBlock(char s[], int maxsize, int &size, bool init_delay = false);
-    bool KWPSendAckBlock();
-    bool readConnectBlocks();
+    bool KWPSend(char *s, int size);
+    bool KWPReceive(char s[], int maxsize, int &size, bool init_delay = false);
+    bool KWPSendAck();
 
 };
 

@@ -1,8 +1,6 @@
 #include "KWP.h"
 #include <Arduino.h>
 
-#define DEBUG_LEVEL 1
-
 KWP::KWP(uint8_t receivePin, uint8_t transmitPin) : obd(NewSoftwareSerial(receivePin, transmitPin, false))
 {
   _OBD_RX_PIN = receivePin;
@@ -13,13 +11,21 @@ KWP::KWP(uint8_t receivePin, uint8_t transmitPin) : obd(NewSoftwareSerial(receiv
 }
 
 bool KWP::connect(uint8_t addr, int baudrate)
-{
+{ 
   blockCounter = 0;
   obd.begin(baudrate);
-  KWP5BaudInit(addr);
+  
+  digitalWrite(_OBD_TX_PIN, LOW); delay(200); // start
+  digitalWrite(_OBD_TX_PIN, HIGH); delay(400); // first two bits
+  digitalWrite(_OBD_TX_PIN, LOW); delay(400); // second pair
+  digitalWrite(_OBD_TX_PIN, HIGH); delay(400); // third pair
+  digitalWrite(_OBD_TX_PIN, LOW); delay(400); // last pair
+  digitalWrite(_OBD_TX_PIN, HIGH); delay(200); // stop bit
+  obd.flush();
+
   char s[3];
   int size = 3;
-  if (!KWPReceiveBlock(s, 3, size)) return false;
+  if (!KWPReceive(s, 3, size)) return false;
   if ((s[0] != 0x55) || (s[1] != 0x01) || (s[2] != 0x8A))
   {
     disconnect();
@@ -27,7 +33,23 @@ bool KWP::connect(uint8_t addr, int baudrate)
     return false;
   }
   connected = true;
-  if (!readConnectBlocks()) return false;
+
+  while (true)
+  {
+    int size = 0;
+    char s[64];
+    if (!(KWPReceive(s, 64, size)))
+      return false;
+    if (size == 0) return false;
+    if (s[2] == 0x09) break;
+    if (s[2] != 0xF6)
+    {
+      disconnect();
+      errorData++;
+      return false;
+    }
+    if (!KWPSendAck()) return false;
+  }
   return true;
 }
 
@@ -39,10 +61,10 @@ void KWP::disconnect()
 int KWP::readBlock(uint8_t addr, int group, int maxSensorsPerBlock, KWPSensor resGroupSensor[])
 {
   char s[64] = { 0x04, blockCounter, 0x29, group, 0x03 };
-  if (!KWPSendBlock(s, 5)) return false;
+  if (!KWPSend(s, 5)) return false;
   int size = 0;
-  KWPReceiveBlock(s, 64, size);
-  if (s[2] != '\xe7')
+  KWPReceive(s, 64, size);
+  if (s[2] != 0xe7)
   {
     disconnect();
     errorData++;
@@ -189,41 +211,7 @@ uint8_t KWP::obdRead()
   return data;
 }
 
-void KWP::KWP5BaudInit(uint8_t addr)
-{
-  #define bitcount 10
-  byte bits[bitcount];
-  byte even=1;
-  byte bit;
-  for (int i=0; i < bitcount; i++)
-  {
-    bit=0;
-    if (i == 0)  bit = 0;
-    else if (i == 8) bit = even; // computes parity bit
-    else if (i == 9) bit = 1;
-    else
-    {
-        bit = (byte) ((addr & (1 << (i-1))) != 0);
-        even = even ^ bit;
-    }
-    bits[i]=bit;
-  }
-  for (int i=0; i < bitcount+1; i++)
-  {
-    if (i != 0)
-    {
-      delay(200);
-      if (i == bitcount) break;
-    }
-    if (bits[i] == 1)
-      digitalWrite(_OBD_TX_PIN, HIGH);
-    else
-     digitalWrite(_OBD_TX_PIN, LOW);
-  }
-  obd.flush();
-}
-
-bool KWP::KWPSendBlock(char *s, int size)
+bool KWP::KWPSend(char *s, int size)
 {
   for (int i=0; i < size; i++)
   {
@@ -244,7 +232,7 @@ bool KWP::KWPSendBlock(char *s, int size)
   return true;
 }
 
-bool KWP::KWPReceiveBlock(char s[], int maxsize, int &size, bool init_delay)
+bool KWP::KWPReceive(char s[], int maxsize, int &size, bool init_delay)
 {
   bool ackeachbyte = false;
   uint8_t data = 0;
@@ -296,28 +284,8 @@ bool KWP::KWPReceiveBlock(char s[], int maxsize, int &size, bool init_delay)
   return true;
 }
 
-bool KWP::KWPSendAckBlock()
+bool KWP::KWPSendAck()
 {
   char buf[4] = { 0x03, blockCounter, 0x09, 0x03 };
-  return (KWPSendBlock(buf, 4));
-}
-
-bool KWP::readConnectBlocks()
-{
-  while (true)
-  {
-    int size = 0;
-    char s[64];
-    if (!(KWPReceiveBlock(s, 64, size))) return false;
-    if (size == 0) return false;
-    if (s[2] == '\x09') break;
-    if (s[2] != '\xF6')
-    {
-      disconnect();
-      errorData++;
-      return false;
-    }
-    if (!KWPSendAckBlock()) return false;
-  }
-  return true;
+  return KWPSend(buf, 4);
 }

@@ -225,7 +225,7 @@ void loop()
   else
   {
     KWPSensor resultBlock[4];
-    int nSensors = kwp.readBlock(ADR_Engine, 2, 4, resultBlock); // get ecu data using kline
+    int nSensors = kwp.readBlock(2, 4, resultBlock); // get ecu data using kline
     if (nSensors == 4)
     {
       trip.pw = resultBlock[2].value;
@@ -233,7 +233,7 @@ void loop()
     }
     if (trip.mode == MODE_VAG)
     {
-      nSensors = kwp.readBlock(ADR_Engine, trip.block, 4, resultBlock);
+      nSensors = kwp.readBlock(trip.block, 4, resultBlock);
 
       display.clearDisplay();
 

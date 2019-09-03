@@ -57,7 +57,7 @@ void KWP::disconnect()
   connected = false;
 }
 
-int KWP::readBlock(uint8_t addr, int group, int maxSensorsPerBlock, KWPSensor resGroupSensor[])
+uint8_t KWP::readBlock(uint8_t group, uint8_t maxSensorsPerBlock, KWPSensor resGroupSensor[])
 {
   char s[64] = { 0x04, blockCounter, 0x29, group, 0x03 };
   if (!KWPSend(s, 5)) return false;
@@ -76,23 +76,16 @@ int KWP::readBlock(uint8_t addr, int group, int maxSensorsPerBlock, KWPSensor re
     errorData++;
     return 0;
   }
-  int j=0;
+
   for (int idx=0; idx < count; idx++)
   {
-    byte k=s[3 + idx*3];
-    byte a=s[3 + idx*3+1];
-    byte b=s[3 + idx*3+2];
+    byte k = s[3 + idx*3];
+    byte a = s[3 + idx*3+1];
+    byte b = s[3 + idx*3+2];
 
-    KWPSensor sensor = getSensorData(k, a, b);
-
-    resGroupSensor[j].type = sensor.type;
-    resGroupSensor[j].a = sensor.a;
-    resGroupSensor[j].b = sensor.b;
-    resGroupSensor[j].value = sensor.value;
-    resGroupSensor[j].units = sensor.units;
-    j++;
+    resGroupSensor[idx] = getSensorData(k, a, b);
   }
-  return j;
+  return count;
 }
 
 uint8_t KWP::getFaults(uint16_t *buffer, uint8_t maxsize)
